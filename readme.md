@@ -101,6 +101,73 @@ app.prepare()
 - Create index page
 	- `mkdir ./pages && touch ./pages/index.js`
 ```javascript
+import React, { Component } from 'react';
+import Layout from '../components/Layout';
+import Chat from '../components/Chat';
+
+class IndexPage extends Component {
+  state = { user: null };
+
+  handleKeyUp = ({ keyCode, target }) => {
+    if (keyCode === 13) { // On pressing enter
+      const { value: user } = target;
+      this.setState({ user });
+    }
+  };
+
+  render() {
+    const { user } = this.state;
+
+    const nameInputStyles = {
+      background: 'transparent',
+      color: '#999',
+      border: 0,
+      borderBottom: '1px solid #666',
+      borderRadius: 0,
+      fontSize: '3rem',
+      fontWeight: 500,
+      boxShadow: 'none !import'
+    };
+
+    return (
+      <Layout pageTitle="Sentiment Aware Realtime Chat">
+        <main className="container-fluid position-absolute h-100 bg-dark">
+          <div className="row position-absolute w-100 h-100">
+            <div className="row position-absolute w-100 h-100">
+              <section className="col-md-8 d-flex flex-row flex-wrap align-items-center align-content-center px-5">
+                <div className="px-5 mx-5">
+                  <span className="d-block w-100 h1 text-light" style={{ marginTop: -50 }}>
+                    {
+                      (user) ?
+                        (<span><span style={{ color: '#999'}}>Hello!</span> {user}</span>) :
+                        'What is your name?'
+                    }
+                  </span>
+                  {
+                    (!user) ?
+                      (
+                        <input
+                          type="text"
+                          className="form-control mt-3 px-3 py-2"
+                          onKeyUp={this.handleKeyUp}
+                          autoComplete="off"
+                          style={nameInputStyles} />
+                      ) : null
+                  }
+                </div>
+              </section>
+              <section
+                className="col-md-4 position-relative d-flex flex-wrap h-100 align-items-start align-content-between bg-white px-0">
+              </section>
+            </div>
+          </div>
+        </main>
+      </Layout>
+    );
+  }
+}
+
+export default () => (<IndexPage/>);
 
 ```
 
@@ -128,4 +195,145 @@ const Layout = (props) => {
     </Fragment>
   );
 };
+```
+
+- Create Chat component
+	- `touch components/Chat.js`
+
+```javascript
+import React, { Component, Fragment } from 'react';
+import axios from 'axios';
+import Pusher from 'pusher-js';
+
+const encrypted = true;
+
+class Chat extends Component {
+  state = { chats: [] };
+
+  componentDidMount() {
+    console.log(process.env);
+    const { PUSHER_APP_CLUSTER: cluster, PUSHER_APP_KEY: appKey } = process.env;
+    const pusherConfig = {cluster, encrypted};
+    this.pusher = new Pusher(appKey, pusherConfig);
+
+    this.channel = this.pusher.subscribe('chat-room');
+    this.channel.bind('new-message', ({ chat = null }) => {
+      const { chats } = this.state;
+      if (chat) {
+        chats.push(chat);
+      }
+      this.setState({ chats });
+    });
+
+    this.pusher.connection.bind('connected', () => {
+      axios.post('/messages')
+        .then(response => {
+          const chats = response.data.messages;
+          this.setState({ chats });
+        });
+    });
+  }
+
+  componentWillUnmount() {
+    this.pusher.disconnect();
+  }
+
+  handleKeyUp = ({ keyCode, shiftKey, target }) => {
+    if (keyCode === 13 && !shiftKey) {
+      const timestamp = +new Date;
+      const { value: message } = target;
+      const { activeUser: user } = this.props;
+      const chat = { user, message, timestamp };
+      target.value = '';
+      axios.post('/message', chat);
+    }
+  };
+
+  render() {
+    return (
+      (this.props.activeUser) ?
+        <Fragment>
+          <div className="border-bottom border-gray w-100 d-flex align-items-center bg-white" style={{height: 90}}>
+            <h2 className="text-dark mb-0 mx-4 px-2">{this.props.activeUser}</h2>
+          </div>
+          <div className="border-bottom border-gray w-100 d-flex align-items-center bg-light" style={{minHeight: 90}}>
+            <textarea
+              className="form-control px-3 py-2"
+              onKeyUp={this.handleKeyUp}
+              placeholder="Enter a chat message"
+              style={{ resize: 'none' }}></textarea>
+          </div>
+        </Fragment> : null
+    );
+  }
+}
+
+export default Chat;
+```
+
+- Add the component to the index
+
+```javascript
+// Replace the empty <section> at the bottom with:
+  <section
+	className="col-md-4 position-relative d-flex flex-wrap h-100 align-items-start align-content-between bg-white px-0">
+	{
+	  (user) ? <Chat /> : null
+	}
+  </section>
+```
+
+- Add the routes to the server
+
+```javascript
+// After the GET catch-all route
+const chatHistory = { messages: [] };
+server.post('/message', (req, res, next) => {
+  const { user = null, message = '', timestamp = +new Date } = req.body;
+  const sentiment = sentimentInstance.analyze(message).score;
+  const chat = { user, message, timestamp, sentiment };
+
+  chatHistory.messages.push(chat);
+  pusher.trigger('chat-room', 'new-message', { chat })
+});
+
+server.post('/messages', (req, res, next) => {
+  res.json({ ...chatHistory, status: 'success' });
+});
+```
+
+- Add a component to display messages
+	- `touch ./components/ChatMessage.js`
+
+```javascript
+import React from 'react';
+
+const ChatMessage = ({ position = 'left', message }) => {
+  const isRight = position.toLowerCase() === 'right';
+  const align = (isRight) ? 'text-right' : 'text-left';
+  const justify = (isRight) ? 'justify-content-end' : 'justify-content-start';
+
+  const messageBoxStyles = {
+    maxWidth: '70%',
+    flexGrow: 0
+  };
+
+  const messageStyles = {
+    fontWeight: 500,
+    lineHeight: 1.4,
+    whiteSpace: 'pre-wrap'
+  };
+
+  return (
+    <div className={`w-100 my-1 d-flex ${justify}`}>
+      <div className="bg-light rounded border border-gray p-2" style={messageBoxStyles}>
+          <span className={`d-block text-secondary ${align}`} style={messageStyles}>
+            {message}
+          </span>
+      </div>
+    </div>
+  )
+};
+
+export default ChatMessage;
 ```

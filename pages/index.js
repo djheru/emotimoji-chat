@@ -1,15 +1,16 @@
 import React, { Component } from 'react';
 import Layout from '../components/Layout';
+import Chat from '../components/Chat';
 
 class IndexPage extends Component {
   state = { user: null };
 
-  handleKeyUp = (e) => {
-    if (e.keyCode === 13) { // On pressing enter
-      const user = e.target.value;
+  handleKeyUp = ({ keyCode, target }) => {
+    if (keyCode === 13) { // On pressing enter
+      const { value: user } = target;
       this.setState({ user });
     }
-  }
+  };
 
   render() {
     const { user } = this.state;
@@ -54,6 +55,9 @@ class IndexPage extends Component {
               </section>
               <section
                 className="col-md-4 position-relative d-flex flex-wrap h-100 align-items-start align-content-between bg-white px-0">
+                {
+                  (user) ? <Chat activeUser={user} /> : null
+                }
               </section>
             </div>
           </div>

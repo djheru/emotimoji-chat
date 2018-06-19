@@ -11,7 +11,7 @@ const port = process.env.PORT || 3000;
 
 const app = next({ dev });
 const handler = app.getRequestHandler();
-const sentiment = new Sentiment();
+const sentimentInstance = new Sentiment();
 
 // Ensure credentials are set properly in .env
 const {
@@ -33,6 +33,23 @@ app.prepare()
 
     server.get('*', (req, res) => {
       return handler(req, res);
+    });
+
+    const chatHistory = { messages: [] };
+    server.post('/message', (req, res, next) => {
+      const { user = null, message = '', timestamp = +new Date } = req.body;
+      const sentimentAnalysis = sentimentInstance.analyze(message).score;
+      console.log('Sentiment Analysis: ', JSON.stringify(sentimentAnalysis, null, '\t'));
+      const sentiment = sentimentAnalysis.score;
+      const chat = { user, message, timestamp, sentiment };
+
+      chatHistory.messages.push(chat);
+      pusher.trigger('chat-room', 'new-message', { chat });
+      res.json({ status: 'success' })
+    });
+
+    server.post('/messages', (req, res, next) => {
+      res.json({ ...chatHistory, status: 'success' });
     });
 
     server.listen(port, (err) => {
