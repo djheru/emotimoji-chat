@@ -119,7 +119,7 @@ class Chat extends Component {
               className="form-control px-3 py-2"
               onKeyUp={this.handleKeyUp}
               placeholder="Enter a chat message"
-              style={{ resize: 'none' }}></textarea>
+              style={{ resize: 'none' }}/>
           </div>
         </Fragment> : null
     );

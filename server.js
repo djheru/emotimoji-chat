@@ -38,11 +38,11 @@ app.prepare()
     const chatHistory = { messages: [] };
     server.post('/message', (req, res, next) => {
       const { user = null, message = '', timestamp = +new Date } = req.body;
-      const sentimentAnalysis = sentimentInstance.analyze(message).score;
-      console.log('Sentiment Analysis: ', JSON.stringify(sentimentAnalysis, null, '\t'));
+      const sentimentAnalysis = sentimentInstance.analyze(message);
+      console.log('Sentiment Analysis: ', sentimentAnalysis);
       const sentiment = sentimentAnalysis.score;
       const chat = { user, message, timestamp, sentiment };
-
+      console.log('chat', chat);
       chatHistory.messages.push(chat);
       pusher.trigger('chat-room', 'new-message', { chat });
       res.json({ status: 'success' })
