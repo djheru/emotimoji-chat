@@ -3,6 +3,23 @@ import axios from 'axios';
 import Pusher from 'pusher-js';
 import ChatMessage from './ChatMessage';
 
+const colors = [
+  '#e21400', '#91580f', '#f8a700', '#f78b00',
+  '#58dc00', '#287b00', '#a8f07a', '#4ae8c4',
+  '#3b88eb', '#3824aa', '#a700ff', '#d300e7'
+];
+
+const getUsernameColor = (username) => {
+  // Compute hash code
+  let hash = 7;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + (hash << 5) - hash;
+  }
+  // Calculate color
+  const index = Math.abs(hash % colors.length);
+  return colors[index];
+};
+
 const emojis = {
   sad: [55357, 56864],
   happy: [55357, 56832],
@@ -80,7 +97,8 @@ class Chat extends Component {
     } else {
       mood = (chat.sentiment > 0) ? emojis.happy : emojis.sad;
     }
-
+    const username = chat.user || 'Anonymous';
+    const usernameColor = getUsernameColor(username);
     return (
       <Fragment key={idx}>
         {
@@ -89,8 +107,8 @@ class Chat extends Component {
               <div
                 className={`d-block w-100 font-weight-bold text-dark mt-4 pb-1 px-1 text-${position}`}
                 style={{ fontSize: '0.9rem' }}>
-                <span>
-                  { chat.user || 'Anonymous' }
+                <span style={ { color: usernameColor } }>
+                  { username }
                   { ' ' }
                   <span style={ { fontSize: '1.2rem' } }>
                     { String.fromCodePoint(...mood) }
@@ -102,7 +120,7 @@ class Chat extends Component {
         <ChatMessage message={chat.message} position={position} />
       </Fragment>
     )
-  }
+  };
 
   render() {
     return (
