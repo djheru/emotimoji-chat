@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node server.js",
     "build": "next build",
+    "prestart": "npm run build",
     "start": "NODE_ENV=production node server.js"
   },
   "keywords": [],
