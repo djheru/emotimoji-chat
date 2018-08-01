@@ -89,10 +89,13 @@ class Chat extends Component {
               <div
                 className={`d-block w-100 font-weight-bold text-dark mt-4 pb-1 px-1 text-${position}`}
                 style={{ fontSize: '0.9rem' }}>
-                <span className="d-block" style={{ fontSize: '1.6rem' }}>
-                  {String.fromCodePoint(...mood)}
+                <span>
+                  { chat.user || 'Anonymous' }
+                  { ' ' }
+                  <span style={ { fontSize: '1.2rem' } }>
+                    { String.fromCodePoint(...mood) }
+                  </span>
                 </span>
-                <span>{ chat.user || 'Anonymous' }</span>
               </div>
             ) : null
         }
