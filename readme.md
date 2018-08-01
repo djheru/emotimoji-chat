@@ -25,12 +25,12 @@ const webpack = require('webpack');
 
 module.exports = {
   webpack: (config) => {
-    // Configure webpack to provide the env variables to React 
+    // Configure webpack to provide the env variables to React
     const env = Object.keys(process.env).reduce((acc, curr) => {
       acc[`process.env.${curr}`] = JSON.stringify(process.env[curr]);
       return acc;
     }, {});
-    
+
     config.plugins.push(new webpack.DefinePlugin(env));
     return config;
   }
@@ -72,11 +72,11 @@ app.prepare()
     server.use(cors());
     server.use(bodyParser.json());
     server.use(bodyParser.urlencoded({ extended: true }));
-    
+
     server.get('*', (req, res) => {
       return handler(req, res);
     });
-    
+
     server.listen(port, (err) => {
       if (err) {
         console.log('Startup Error! Aborting...');
@@ -173,7 +173,7 @@ export default () => (<IndexPage/>);
 
 - Create Layout component
 	- `mkdir ./components && touch ./components/Layout.js`
-	
+
 ```javascript
 import React, { Fragment } from 'react';
 import Head from 'next/head';
@@ -337,3 +337,67 @@ const ChatMessage = ({ position = 'left', message }) => {
 
 export default ChatMessage;
 ```
+
+## Deploy
+
+### Setup Dockerfile
+
+```
+FROM mhart/alpine-node:9 AS build
+
+WORKDIR /srv
+ADD package.json .
+RUN npm install
+ADD . .
+
+FROM mhart/alpine-node:base-9
+COPY --from=build /srv .
+
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+- Build the image:
+
+```
+docker build \
+    --build-arg PUSHER_APP_ID=3570423 \
+    --build-arg PUSHER_APP_KEY=2a05fbf2767493b5841d2 \
+    --build-arg PUSHER_APP_SECRET=cbf45d66666706456947e \
+    --build-arg PUSHER_APP_CLUSTER=us2 \
+    -t emotimoji-chat .
+
+```
+
+### Create Registry
+
+- Navigate to Elastic Container Registry (ECR) and select "Create Repository"
+- Run the provided commands to push the image to the repository
+```
+aws ecr get-login --no-include-email --region us-east-1
+# Run the output of the above command to login
+
+docker tag emotimoji-chat:latest 205375198116.dkr.ecr.us-east-1.amazonaws.com/emotimoji-chat:latest
+docker push 205375198116.dkr.ecr.us-east-1.amazonaws.com/emotimoji-chat:latest
+```
+
+- Deploy the cluster
+
+```
+aws cloudformation deploy \
+    --stack-name=production \
+    --template-file=recipes/public-vpc.yml \
+    --capabilities=CAPABILITY_IAM
+```
+
+- Navigate to the CloudFormation console
+- Click "Create Stack"
+- Upload ./recipes/public-service.yml
+- Enter a service name, e.g. emotimoji-chat
+- Update the "ImageUrl" field to point to the ECR Url
+- Change the "DesiredCount" to 1 for now
+- Change the "ContainerPort" to 3000, since that's what we used in the app and exposed in the dockerfile
+- When the status changes to "CREATE_COMPLETE", it's ready
+- Click the 'production' stack and select the `ExternalUrl` from the "Outputs"tab
+
+
